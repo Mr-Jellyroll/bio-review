@@ -2,14 +2,28 @@ import pandas as pd
 import re
 import os
 
-def process_species_records(input_csv_path, rules_csv_path='USFS_MSUP_Class_2.csv'):
-    """Process species records with updated guidance logic"""
+# Configuration constants
+OUTPUT_DIR = os.path.expanduser('~/Documents/GitHub/bio-review/processed_data')
+RULES_FILE = 'USFS_MSUP_Class_2.csv'  # Updated rules file name
+
+def ensure_output_directory():
+    """Create output directory if it doesn't exist"""
+    if not os.path.exists(OUTPUT_DIR):
+        try:
+            os.makedirs(OUTPUT_DIR)
+            print(f"Created output directory: {OUTPUT_DIR}")
+        except Exception as e:
+            print(f"Error creating output directory: {e}")
+            raise
+
+def process_species_records(input_csv_path, rules_csv_path=RULES_FILE):
+    """Process species records"""
     print(f"\nReading input file: {input_csv_path}")
     print(f"Reading rules file: {rules_csv_path}")
-
+    
     input_df = pd.read_csv(input_csv_path, dtype=str)
     rules_df = pd.read_csv(rules_csv_path, dtype=str)
-
+    
     def clean_species_name(name):
         if isinstance(name, str):
             return re.sub(r'\s+', ' ', name.strip().lower())
@@ -143,14 +157,24 @@ def process_species_records(input_csv_path, rules_csv_path='USFS_MSUP_Class_2.cs
 if __name__ == '__main__':
     import sys
     
+    # Get input file from command line argument or use default
     input_file = sys.argv[1] if len(sys.argv) > 1 else 'Test.csv'
-    output_file = input_file.rsplit('.', 1)[0] + '_processed.csv'
+    
+    # Create output filename in the specified directory
+    output_filename = os.path.basename(input_file).rsplit('.', 1)[0] + '_processed.csv'
+    output_file = os.path.join(OUTPUT_DIR, output_filename)
     
     print(f"\nStarting species record processing...")
     print(f"Current working directory: {os.getcwd()}")
     
     try:
+        # Ensure output directory exists
+        ensure_output_directory()
+        
+        # Process the data
         result_df = process_species_records(input_file)
+        
+        # Save results
         print(f"\nSaving results to: {os.path.abspath(output_file)}")
         result_df.to_csv(output_file, index=False)
         print("Processing completed successfully!")
@@ -158,6 +182,7 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"\nError occurred: {str(e)}")
         print("\nPlease check that:")
-        print("1. Your input CSV file exists and is readable")
-        print("2. The 'USFS_MSUP_Class_2.csv' file is in the same directory")
-        print("3. The input CSV has a 'Review Records' column")
+        print(f"1. Your input CSV file exists and is readable")
+        print(f"2. The '{RULES_FILE}' file is in the same directory")
+        print(f"3. The input CSV has a 'Review Records' column")
+        print(f"4. You have write permissions for the output directory")
