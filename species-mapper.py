@@ -4,7 +4,7 @@ import os
 
 # Configuration constants
 OUTPUT_DIR = os.path.expanduser('~/Documents/GitHub/bio-review/processed_data')
-RULES_FILE = 'USFS_MSUP_Class_2.csv'  # Updated rules file name
+RULES_FILE = 'USFS_MSUP_Class_2.csv'
 
 def ensure_output_directory():
     """Create output directory if it doesn't exist"""
@@ -51,7 +51,7 @@ def process_species_records(input_csv_path, rules_csv_path=RULES_FILE):
                 
         # Yosemite Toad specific logic
         if species_name == 'yosemite toad':
-            if 'SNF Occupied' in location_info and 'Critical Habitat' in location_info:
+            if 'SNF Occupied' in location_info:
                 return 1
                 
         # Default USFS occurrence logic
@@ -59,6 +59,58 @@ def process_species_records(input_csv_path, rules_csv_path=RULES_FILE):
             return 1
             
         return None
+
+    def modify_review_language_for_sources(review_lang, location_info):
+        """Modify review language based on data sources (USFS, CNDDB, etc.)"""
+        if not review_lang:
+            return review_lang
+            
+        # Identify which sources are present
+        has_usfs = 'USFS' in location_info
+        has_cnddb = 'CNDDB' in location_info
+        has_sce = 'SCE' in location_info
+        
+        # Find the pattern we need to replace
+        pattern = r'Within \d+(?:\.\d+)?-mi of (?:a |an )?(CNDDB/SCE/USFS|USFS/SCE/CNDDB|SCE/CNDDB/USFS) occurrence record'
+        
+        if re.search(pattern, review_lang):
+            # Build the new source text based on what's present
+            sources = []
+            if has_cnddb:
+                sources.append('CNDDB')
+            if has_usfs:
+                sources.append('USFS')
+            if has_sce:
+                sources.append('SCE')
+                
+            if sources:
+                # Join sources with '/'
+                source_text = '/'.join(sources)
+                
+                # Determine if we should use singular or plural "record(s)"
+                record_text = 'records' if len(sources) > 1 else 'record'
+                
+                # Create the replacement text
+                if len(sources) == 1:
+                    replacement = f'Within 1-mi of a {source_text} occurrence {record_text}'
+                else:
+                    replacement = f'Within 1-mi of {source_text} occurrence {record_text}'
+                    
+                # Replace the pattern in the review language
+                review_lang = re.sub(pattern, replacement, review_lang)
+        
+        return review_lang
+
+    def modify_review_language_for_critical_habitat(review_lang, location_info):
+        """Add critical habitat text to review language if needed"""
+        if 'Critical Habitat' in location_info:
+            if 'Critical Habitat' not in review_lang:
+                match = re.search(r'\) - Within ([^:]+):', review_lang)
+                if match:
+                    original_text = match.group(1)
+                    modified_text = f"{original_text} and USFWS Critical Habitat"
+                    review_lang = review_lang.replace(original_text + ":", modified_text + ":")
+        return review_lang
 
     def match_review_language(species_name, location_info, rule):
         """Get appropriate review language and RPM based on guidance"""
@@ -72,6 +124,13 @@ def process_species_records(input_csv_path, rules_csv_path=RULES_FILE):
             
             review = rule[review_col] if pd.notna(rule[review_col]) else None
             rpm = rule[rpm_col] if pd.notna(rule[rpm_col]) else None
+            
+            # Apply both modifications if review exists
+            if review:
+                # First modify based on sources present
+                review = modify_review_language_for_sources(review, location_info)
+                # Then add critical habitat if needed
+                review = modify_review_language_for_critical_habitat(review, location_info)
             
             return review, rpm
             
