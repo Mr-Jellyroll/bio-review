@@ -6,10 +6,10 @@ def process_species_records(input_csv_path, rules_csv_path='USFS_MSUP_Class_2.cs
     """Process species records with updated guidance logic"""
     print(f"\nReading input file: {input_csv_path}")
     print(f"Reading rules file: {rules_csv_path}")
-    
+
     input_df = pd.read_csv(input_csv_path, dtype=str)
     rules_df = pd.read_csv(rules_csv_path, dtype=str)
-    
+
     def clean_species_name(name):
         if isinstance(name, str):
             return re.sub(r'\s+', ' ', name.strip().lower())
