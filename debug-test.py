@@ -19,24 +19,24 @@ SPECIES_NAME_MAPPINGS = {
     'mountain yellow-legged frog': 'Sierra Nevada yellow-legged frog',
     'Sierra Nevada Yellow-Legged Frog': 'Sierra Nevada yellow-legged frog',
     'Short-Leaved Hulsea': 'short-leaved hulsea',
-    "Bolander's Woodreed": 'Bolanders woodreed',
+    "Bolander's Woodreed": "Bolander's woodreed",
     'Great Gray Owl': 'great gray owl'
 }
 
-# Complete taxonomic ordering
 TAXON_ORDER = {
     'Invasive Plants': 1,
     'Plants': 2,
+    'Plant': 2,  # Add this since some use 'Plant' instead of 'Plants'
     'Invertebrates': 3,
     'Fish': 4,
     'Amphibian': 5,
     'Reptiles': 6,
     'Bird': 7,
+    '--': 7,  # Add this for woodpeckers
     'Mammal': 8
 }
 
 def ensure_output_directory():
-    """Create output directory if it doesn't exist"""
     if not os.path.exists(OUTPUT_DIR):
         try:
             os.makedirs(OUTPUT_DIR)
@@ -46,17 +46,15 @@ def ensure_output_directory():
             raise
 
 def clean_species_name(name):
-    """Clean up species name for matching"""
     if isinstance(name, str):
         return re.sub(r'\s+', ' ', name.strip().lower())
     return ''
 
 def standardize_species_name(species_name):
-    """Standardize species names according to SNF rules"""
     if not isinstance(species_name, str):
         return species_name
         
-    # Check for woodpeckers first
+    # Check for woodpeckers first (including Acorn Woodpecker)
     if 'woodpecker' in species_name.lower():
         return '00_Woodpeckers'
         
@@ -71,11 +69,9 @@ def standardize_species_name(species_name):
     return species_name
 
 def should_process_species(species_name):
-    """Check if species should be processed based on exclusion list"""
     return not any(excluded in species_name.lower() for excluded in EXCLUDED_SPECIES)
 
 def modify_source_text(review_lang, location_info):
-    """Modify review language based on which sources are present"""
     if not review_lang:
         return review_lang
 
@@ -112,7 +108,6 @@ def modify_source_text(review_lang, location_info):
     return review_lang
 
 def modify_review_language_for_critical_habitat(review_lang, location_info):
-    """Add critical habitat text to review language if needed"""
     if 'Critical Habitat' in location_info:
         if 'Critical Habitat' not in review_lang:
             match = re.search(r'\) - Within ([^:]+):', review_lang)
@@ -123,11 +118,10 @@ def modify_review_language_for_critical_habitat(review_lang, location_info):
     return review_lang
 
 def get_review_number(species_name, location_info, rule):
-    """Determine which review language number to use"""
     species_name = clean_species_name(species_name)
     
     # If Species Specific Guidance is empty/blank, use Review Language (1)
-    if pd.isna(rule['Species Specific Guidance']) or rule['Species Specific Guidance'].strip() == '':
+    if pd.isna(rule['Species Specific Guidance']) or rule['Species Specific Guidance'] in ['--', '', ' ']:
         return 1
     
     # Handle Sierra Nevada Yellow-Legged Frog with SNF Unknown occupied
@@ -155,10 +149,9 @@ def get_review_number(species_name, location_info, rule):
     elif 'USFS' in location_info and re.search(r'\d+\.\d+-mi', location_info):
         return 1
         
-    return None
+    return 1  # Default to Review Language (1)
 
 def get_review_language(species, location_info, rule):
-    """Get appropriate review language and RPM based on guidance"""
     if rule is None:
         return None, None
         
@@ -180,21 +173,6 @@ def get_review_language(species, location_info, rule):
         return review, rpm
         
     return None, None
-
-def process_species_records(input_csv_path, rules_csv_path=RULES_FILE):
-    """Process species records from input CSV using classification rules"""
-    print(f"\nReading input file: {input_csv_path}")
-    print(f"Reading rules file: {rules_csv_path}")
-    
-    # Read CSVs with explicit string types for key columns
-    dtypes = {
-        'Review Records': str,
-        'Biological Resource Review (presence/absence, resource description if appropriate)': str,
-        'Biological RPMs': str
-    }
-    
-    input_df = pd.read_csv(input_csv_path, dtype=dtypes)
-    rules_df = pd.read_csv(rules_csv_path, dtype=str)
 
 def process_single_record(review_records):
     """Process a single review records entry with debug output"""
@@ -285,6 +263,21 @@ def process_single_record(review_records):
     print(f"Has RPMs: {bool(final_rpms)}")
     
     return final_review, final_rpms
+
+def process_species_records(input_csv_path, rules_csv_path=RULES_FILE):
+    print(f"\nReading input file: {input_csv_path}")
+    print(f"Reading rules file: {rules_csv_path}")
+    
+    # Read CSVs with explicit string types for key columns
+    dtypes = {
+        'Review Records': str,
+        'Biological Resource Review (presence/absence, resource description if appropriate)': str,
+        'Biological RPMs': str
+    }
+    
+    global rules_df
+    input_df = pd.read_csv(input_csv_path, dtype=dtypes)
+    rules_df = pd.read_csv(rules_csv_path, dtype=str)
     
     # Process all records
     results = []
