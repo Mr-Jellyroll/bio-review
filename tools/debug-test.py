@@ -1,6 +1,7 @@
 import pandas as pd
 import re
 import os
+import sys
 
 # Configuration constants
 OUTPUT_DIR = os.path.expanduser('~/Documents/GitHub/bio-review/processed_data')
@@ -36,7 +37,51 @@ TAXON_ORDER = {
     'Mammal': 8
 }
 
+def get_available_files():
+    """Get list of CSV and XLSX files in current directory excluding USFS_MSUP_Class_2.csv"""
+    all_files = os.listdir('.')
+    valid_files = [f for f in all_files 
+                  if (f.endswith('.csv') or f.endswith('.xlsx')) 
+                  and f != 'USFS_MSUP_Class_2.csv']
+    return valid_files
+
+def display_file_options(files):
+    """Display numbered list of files"""
+    print("\nAvailable files:")
+    for idx, file in enumerate(files, 1):
+        print(f"{idx}. {file}")
+    print()
+
+def get_user_selection(files):
+    """Get user's file selection"""
+    while True:
+        try:
+            selection = int(input("Enter the number of the file you want to process: "))
+            if 1 <= selection <= len(files):
+                return files[selection - 1]
+            else:
+                print(f"Please enter a number between 1 and {len(files)}")
+        except ValueError:
+            print("Please enter a valid number")
+
+def convert_xlsx_to_csv(xlsx_file):
+    """Convert XLSX file to CSV"""
+    print(f"\nConverting {xlsx_file} to CSV...")
+    
+    # Read XLSX
+    df = pd.read_excel(xlsx_file)
+    
+    # Create CSV filename
+    csv_file = xlsx_file.rsplit('.', 1)[0] + '.csv'
+    
+    # Save as CSV
+    df.to_csv(csv_file, index=False)
+    print(f"Converted to {csv_file}")
+    
+    return csv_file
+
 def ensure_output_directory():
+    """Create output directory if it doesn't exist"""
     if not os.path.exists(OUTPUT_DIR):
         try:
             os.makedirs(OUTPUT_DIR)
@@ -46,11 +91,13 @@ def ensure_output_directory():
             raise
 
 def clean_species_name(name):
+    """Clean up species name for matching"""
     if isinstance(name, str):
         return re.sub(r'\s+', ' ', name.strip().lower())
     return ''
 
 def standardize_species_name(species_name):
+    """Standardize species names according to SNF rules"""
     if not isinstance(species_name, str):
         return species_name
         
@@ -69,9 +116,11 @@ def standardize_species_name(species_name):
     return species_name
 
 def should_process_species(species_name):
+    """Check if species should be processed based on exclusion list"""
     return not any(excluded in species_name.lower() for excluded in EXCLUDED_SPECIES)
 
 def modify_source_text(review_lang, location_info):
+    """Modify review language based on which sources are present"""
     if not review_lang:
         return review_lang
 
@@ -102,6 +151,7 @@ def modify_source_text(review_lang, location_info):
     return review_lang
 
 def modify_review_language_for_critical_habitat(review_lang, location_info):
+    """Add critical habitat text to review language if needed"""
     if 'Critical Habitat' in location_info:
         if 'Critical Habitat' not in review_lang:
             match = re.search(r'\) - Within ([^:]+):', review_lang)
@@ -112,6 +162,7 @@ def modify_review_language_for_critical_habitat(review_lang, location_info):
     return review_lang
 
 def get_review_number(species_name, location_info, rule):
+    """Determine which review language number to use"""
     species_name = clean_species_name(species_name)
     
     if pd.isna(rule['Species Specific Guidance']) or rule['Species Specific Guidance'] in ['--', '', ' ']:
@@ -143,6 +194,7 @@ def get_review_number(species_name, location_info, rule):
     return 1
 
 def get_review_language(species, location_info, rule, original_species=None):
+    """Get appropriate review language and RPM based on guidance"""
     if rule is None:
         return None, None
         
@@ -167,6 +219,7 @@ def get_review_language(species, location_info, rule, original_species=None):
     return None, None
 
 def process_single_record(review_records):
+    """Process a single review records entry"""
     if pd.isna(review_records) or not review_records:
         return None, None
         
@@ -221,6 +274,7 @@ def process_single_record(review_records):
     return final_review, final_rpms
 
 def process_species_records(input_csv_path, rules_csv_path=RULES_FILE):
+    """Process species records from input CSV using classification rules"""
     print(f"\nReading input file: {input_csv_path}")
     print(f"Reading rules file: {rules_csv_path}")
     
@@ -251,18 +305,36 @@ def process_species_records(input_csv_path, rules_csv_path=RULES_FILE):
     return output_df
 
 if __name__ == '__main__':
-    import sys
-    
-    input_file = sys.argv[1] if len(sys.argv) > 1 else 'Test.csv'
-    output_filename = os.path.basename(input_file).rsplit('.', 1)[0] + '_processed.csv'
-    output_file = os.path.join(OUTPUT_DIR, output_filename)
-    
     print(f"\nStarting species record processing...")
     print(f"Current working directory: {os.getcwd()}")
     
     try:
+        # Get and display available files
+        available_files = get_available_files()
+        
+        if not available_files:
+            print("No CSV or XLSX files found in the current directory")
+            sys.exit(1)
+            
+        display_file_options(available_files)
+        selected_file = get_user_selection(available_files)
+        
+        # Handle file based on type
+        input_file = selected_file
+        if selected_file.endswith('.xlsx'):
+            input_file = convert_xlsx_to_csv(selected_file)
+        
+        # Create output filename
+        output_filename = os.path.basename(input_file).rsplit('.', 1)[0] + '_processed.csv'
+        output_file = os.path.join(OUTPUT_DIR, output_filename)
+        
+        # Ensure output directory exists
         ensure_output_directory()
+        
+        # Process the data
         result_df = process_species_records(input_file)
+        
+        # Save results
         print(f"Saving results to: {os.path.abspath(output_file)}")
         result_df.to_csv(output_file, index=False)
         print("Processing completed successfully!")
@@ -270,7 +342,7 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"\nError occurred: {str(e)}")
         print("Please check that:")
-        print(f"1. Your input CSV file exists and is readable")
+        print(f"1. Your input file exists and is readable")
         print(f"2. The '{RULES_FILE}' file is in the same directory")
-        print(f"3. The input CSV has a 'Review Records' column")
+        print(f"3. The input file has a 'Review Records' column")
         print(f"4. You have write permissions for the output directory")

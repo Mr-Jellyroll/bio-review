@@ -1,2 +1,5 @@
+# Test files
+/test
+
 # Processed data .csv files
 /processed_data
