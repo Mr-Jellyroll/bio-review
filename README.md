@@ -14,26 +14,32 @@ The script processes species records from input CSV files and maps them to stand
 ## File Structure
 
 Required files:
-- `species-mapper.py`: Main processing script
-- `USFS_MSUP_Class_2.csv`: Classification rules file containing review language and RPMs
-- Input CSV file (e.g., `Test.csv`) containing the review records to process
 
-### CSV File Requirements
+- species-mapper.py: Main processing script
+- USFS_MSUP_Class_2.csv: Classification rules file containing review language and RPMs
+- Input file (CSV or XLSX) containing the review records to process
+
+### File Requirements
 
 #### Input CSV (Test.csv):
+File Requirements
+
+Input File (CSV or XLSX):
+
 Must contain a column named "Review Records" with species data in the format:
-```
-Species Name - Location Information
-```
+``CopySpecies Name - Location Information``
+
 Example:
-```
-Pacific fisher - Not within 650-ft of CBI reproductive
-Yosemite Toad - SNF Occupied | USFWS Critical Habitat
-```
+```CopyPacific fisher - Not within 650-ft of CBI reproductive```
+```Yosemite Toad - SNF Occupied | USFWS Critical Habitat```
+```California Spotted Owl - Sierra Nevada DPS - CASPO Warning Layer```
 
 #### Rules CSV USFS_MSUP_Class_2.csv:
 Must contain the following columns:
 - Species
+- Scientific Name
+- Habitat
+- USFS guidance
 - Taxon
 - Species Specific Guidance
 - Review Language (1-4)
@@ -43,17 +49,15 @@ Must contain the following columns:
 
 Run the script from the command line:
 ```bash
-python3 species-mapper.py your_input_file.csv
+python3 species-mapper.py
 ```
 
 The script will:
-1. Read the input CSV file
-2. Process each record according to the rules in USFS_MSUP_Class_2.csv
-3. Generate output with new/updated columns:
-   - "Biological Resource Review (presence/absence, resource description if appropriate)"
-   - "Biological RPMs"
-
-Output will be saved as `your_input_file_processed.csv`
+1. Display a list of available CSV and XLSX files in the current directory
+2. Prompt you to select a file to process
+3. If an XLSX file is selected, automatically convert it to CSV
+4. Process the records according to the rules in USFS_MSUP_Class_2.csv
+5. Save the output in `/bio-review/processed_data/`
 
 ## Processing Logic
 
@@ -72,9 +76,37 @@ Pacific Fisher handling:
 - "Within 650-ft" + "CBI" → Review Language (3)
 
 Yosemite Toad handling:
-- "SNF Occupied" + "Critical Habitat" → Review Language (1)
+- "Kaiser Pass Access" → Review Language (4)
+- "SNF Occupied Unknown" → Review Language (2)
+- "SNF Occupied" → Review Language (1)
+
+### Location Processing
+
+The script handles various location indicators:
+
+- Source combinations (USFS/CNDDB/SCE)
+- Critical Habitat designation
+- Outside of SNF Mapped Habitat
+- Distance-based criteria (e.g., "Within 1-mi")
+
+### Excluded Species
+
+Certain species are excluded from processing, including:
+
+- Special-status fish
+- Ringtail
+- California red-legged frog
+- Sierra Nevada red fox
+- Wolverine
+- Pallid bat
+- California condor
+- Valley elderberry longhorn beetle
+- Special-status bumble bees
 
 ## Output Format
+
+### File Location
+Processed files are saved in /bio-review/processed_data/ with "_processed" appended to the original filename.
 
 The processed CSV will maintain all original columns and add/update:
 1. Biological Resource Review: Standardized review language for each species, ordered by taxonomy
@@ -83,22 +115,25 @@ The processed CSV will maintain all original columns and add/update:
 ## Error Handling
 
 The script will check for:
-- Missing input files
+- File availability and access
 - Required columns
-- File permissions
-- Data format issues
+- Directory permissions
+- Data format integrity
+- CSV/XLSX conversion
 
 Error messages will indicate the specific issue and required fixes.
 
 ## Troubleshooting
 
 Common issues:
-1. File not found: Ensure both input CSV and USFS_MSUP_Class_2.csv are in the same directory
-2. Column errors: Verify "Review Records" column exists in input CSV
-3. Empty output: Check input data format matches expected patterns
+1. No files found: Ensure CSV/XLSX files are in the current directory
+2. Conversion errors: Check XLSX file format and permissions
+3. Missing output: Verify write permissions for output directory
+4. Empty results: Confirm input data follows expected format
 
 ## Notes
 
 - Keep both the script and USFS_MSUP_Class_2.csv in the same directory as your input file
 - Maintain the standard format in the Review Records column
 - Do not modify the structure of USFS_MSUP_Class_2.csv
+- The script automatically handles both CSV and XLSX input files
