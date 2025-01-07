@@ -15,24 +15,23 @@ The script processes species records from input CSV files and maps them to stand
 
 Required files:
 
-- species-mapper.py: Main processing script
-- USFS_MSUP_Class_2.csv: Classification rules file containing review language and RPMs
+- `species-mapper.py`: Main processing script
+- `USFS_MSUP_Class_2.csv`: Classification rules file containing review language and RPMs
 - Input file (CSV or XLSX) containing the review records to process
 
 ### File Requirements
 
-#### Input CSV (Test.csv):
-File Requirements
-
-Input File (CSV or XLSX):
-
+#### Input File (CSV or XLSX):
 Must contain a column named "Review Records" with species data in the format:
-``CopySpecies Name - Location Information``
-
+```
+Species Name - Location Information
+```
 Example:
-```CopyPacific fisher - Not within 650-ft of CBI reproductive```
-```Yosemite Toad - SNF Occupied | USFWS Critical Habitat```
-```California Spotted Owl - Sierra Nevada DPS - CASPO Warning Layer```
+```
+Pacific fisher - Not within 650-ft of CBI reproductive
+Yosemite Toad - SNF Occupied | USFWS Critical Habitat
+California Spotted Owl - Sierra Nevada DPS - CASPO Warning Layer
+```
 
 #### Rules CSV USFS_MSUP_Class_2.csv:
 Must contain the following columns:
