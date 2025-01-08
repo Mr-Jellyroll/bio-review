@@ -4,7 +4,7 @@ import os
 import sys
 
 # Configuration constants
-OUTPUT_DIR = os.path.expanduser('~/Documents/GitHub/bio-review/processed_data')
+OUTPUT_DIR = os.path.join(os.getcwd(), 'processed_data')
 RULES_DIR = 'rules'  # New constant for rules directory
 RULES_FILE = os.path.join(RULES_DIR, 'USFS_MSUP_Class_2.csv')  # Updated path
 
