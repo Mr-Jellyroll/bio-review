@@ -5,7 +5,39 @@ import sys
 
 # Configuration constants
 OUTPUT_DIR = os.path.expanduser('~/Documents/GitHub/bio-review/processed_data')
-RULES_FILE = 'USFS_MSUP_Class_2.csv'
+RULES_DIR = 'rules'  # New constant for rules directory
+RULES_FILE = os.path.join(RULES_DIR, 'USFS_MSUP_Class_2.csv')  # Updated path
+
+def get_available_files():
+    """Get list of CSV and XLSX files in current directory excluding rules file"""
+    all_files = os.listdir('.')
+    valid_files = [f for f in all_files
+                  if (f.endswith('.csv') or f.endswith('.xlsx'))
+                  and f != os.path.basename(RULES_FILE)]  # Updated to use basename
+    return valid_files
+
+def process_species_records(input_csv_path, rules_csv_path=RULES_FILE):
+    """Process species records from input CSV using classification rules"""
+    print(f"\nReading input file: {input_csv_path}")
+    print(f"Reading rules file: {rules_csv_path}")
+    
+    # Verify rules directory exists
+    if not os.path.exists(RULES_DIR):
+        raise FileNotFoundError(f"Rules directory '{RULES_DIR}' not found. Please create it and place USFS_MSUP_Class_2.csv inside.")
+    
+    # Verify rules file exists
+    if not os.path.exists(rules_csv_path):
+        raise FileNotFoundError(f"Rules file '{rules_csv_path}' not found in the rules directory.")
+    
+    dtypes = {
+        'Review Records': str,
+        'Biological Resource Review (presence/absence, resource description if appropriate)': str,
+        'Biological RPMs': str
+    }
+    
+    global rules_df
+    input_df = pd.read_csv(input_csv_path, dtype=dtypes)
+    rules_df = pd.read_csv(rules_csv_path, dtype=str)
 
 # Species configurations
 EXCLUDED_SPECIES = [
@@ -398,10 +430,16 @@ if __name__ == '__main__':
         result_df.to_csv(output_file, index=False)
         print("Processing completed successfully!")
         
+    except FileNotFoundError as e:
+        print(f"\nError: {str(e)}")
+        print("\nPlease ensure:")
+        print(f"1. The 'rules' directory exists in the current working directory")
+        print(f"2. The USFS_MSUP_Class_2.csv file is inside the 'rules' directory")
+        print(f"3. Your input file exists and is readable")
+        print(f"4. You have write permissions for the output directory")
     except Exception as e:
         print(f"\nError occurred: {str(e)}")
         print("Please check that:")
-        print(f"1. Your input file exists and is readable")
-        print(f"2. The '{RULES_FILE}' file is in the same directory")
-        print(f"3. The input file has a 'Review Records' column")
-        print(f"4. You have write permissions for the output directory")
+        print(f"1. Your input file has a 'Review Records' column")
+        print(f"2. The input file format is correct")
+        print(f"3. You have sufficient permissions for all operations")
